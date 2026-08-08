@@ -76,11 +76,23 @@ export default function SignupForm() {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setError('');
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1400));
+
+    try {
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, website, icp }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+
     setLoading(false);
-    // Save user info for dashboard personalisation
-    localStorage.setItem('gojiberry_user', JSON.stringify({ name, email, website }));
+    // Save session for dashboard
+    localStorage.setItem('gojiberry_session', email);
     setStep(2);
+    
+    // Simulate finding leads in background
     await new Promise((r) => setTimeout(r, 2200));
     window.location.href = '/dashboard';
   };

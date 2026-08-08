@@ -939,7 +939,7 @@ function SettingsView({
   });
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const newIcp: ICPAnalysis = {
       companyDescription: icp?.companyDescription ?? '',
       targetRoles: fields.roles.split(',').map(s => s.trim()).filter(Boolean),
@@ -948,18 +948,28 @@ function SettingsView({
       companySize: fields.companySize,
       geography: fields.geography,
     };
-    setStore('gojiberry_icp', newIcp);
-    setStore('gojiberry_exclude_domains', fields.excludeDomains);
-    setStore('gojiberry_daily_limit', fields.dailyLimit);
-    setStore('gojiberry_warmup', fields.warmup);
-    // Save API key if provided
+    
+    const email = localStorage.getItem('gojiberry_session') || userInfo?.email;
+    if (email) {
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          icp: newIcp,
+          excludeDomains: fields.excludeDomains,
+          dailyLimit: fields.dailyLimit,
+          warmup: fields.warmup,
+          name: fields.fromName,
+          geminiKey: keyInput.trim() || undefined,
+        }),
+      });
+    }
+
     if (keyInput.trim()) {
-      setStore('gojiberry_gemini_key', keyInput.trim());
       onGeminiKeyChange(keyInput.trim());
     }
-    // Update user info
-    const user = getStore<Record<string,string>>('gojiberry_user', {});
-    setStore('gojiberry_user', { ...user, name: fields.fromName, email: fields.fromEmail });
+    
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     onSaveAndRefresh(newIcp, fields.fromName, fields.fromEmail);
@@ -1255,81 +1265,106 @@ function DashboardInner() {
   const [agentRunning, setAgentRunning] = useState(true);
   const [activeNav, setActiveNav] = useState('dashboard');
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => getStore('gojiberry_notifications', INITIAL_NOTIFICATIONS));
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [leadsLoading, setLeadsLoading] = useState(true);
-  const [icp, setIcp] = useState<ICPAnalysis | null>(null);
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [emailModal, setEmailModal] = useState<EmailModal>({ open: false, loading: false, subject: '', body: '', prospect: null });
-  const [linkedInModal, setLinkedInModal] = useState<LinkedInModal>({ open: false, loading: false, message: '', prospect: null });
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => getStore('gojiberry_calendar', DEFAULT_CALENDAR_EVENTS));
-  const [threads, setThreads] = useState<Record<number, string[]>>(() => getStore('gojiberry_threads', {}));
-  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
-  const activityCounter = useRef(0);
-  const [geminiKey, setGeminiKey] = useState<string>(() => getStore('gojiberry_gemini_key', ''));
+  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(DEFAULT_CALENDAR_EVENTS);
+  const [threads, setThreads] = useState<Record<number, string[]>>({});
+  const [geminiKey, setGeminiKey] = useState<string>('');
   const { showToast } = useToast();
 
-  // ── Auth guard ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const user = getStore<UserInfo | null>('gojiberry_user', null);
-    if (!user) {
-      // Allow access without login for demo — just set a demo user
-      setStore('gojiberry_user', { name: 'Ayazkhan', email: 'demo@gojiberry.ai', website: 'gojiberry.ai' });
-      setUserInfo({ name: 'Ayazkhan', email: 'demo@gojiberry.ai', website: 'gojiberry.ai' });
-    } else {
-      setUserInfo(user);
-    }
-  }, []);
-
   // ── Load leads ──────────────────────────────────────────────────────────────
-  const fetchLeads = useCallback(async (icpData: ICPAnalysis | null, website: string, force = false) => {
-    if (!force) {
-      try {
-        const cached = localStorage.getItem('gojiberry_leads');
-        if (cached) {
-          const { leads: cachedLeads, ts } = JSON.parse(cached);
-          if (Date.now() - ts < 5 * 60 * 1000) {
-            setLeads(cachedLeads);
-            setLeadsLoading(false);
-            return;
-          }
-        }
-      } catch { /* ignore */ }
-    }
-
+  const fetchLeads = useCallback(async (icpData: ICPAnalysis | null, website: string, email: string, currentKey: string, force = false) => {
     setLeadsLoading(true);
     try {
+      if (!force) {
+        // Try fetching from DB first
+        const dbRes = await fetch(`/api/leads?email=${email}`);
+        const dbData = await dbRes.json();
+        if (dbData.leads && dbData.leads.length > 0) {
+          setLeads(dbData.leads);
+          setLeadsLoading(false);
+          return;
+        }
+      }
+
+      // If force or no leads in DB, generate new ones
       const res = await fetch('/api/generate-leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ icp: icpData, website, clientApiKey: geminiKey }),
+        body: JSON.stringify({ icp: icpData, website, clientApiKey: currentKey }),
       });
       const data = await res.json();
       if (data.leads?.length) {
         setLeads(data.leads);
-        localStorage.setItem('gojiberry_leads', JSON.stringify({ leads: data.leads, ts: Date.now() }));
+        // Save to DB
+        await fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, leads: data.leads }),
+        });
         if (data.source === 'gemini') showToast(`${data.leads.length} AI-generated leads loaded!`, 'success');
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       showToast('Could not load leads', 'error');
     }
     setLeadsLoading(false);
   }, [showToast]);
 
+  // ── Auth guard & initial load ──────────────────────────────────────────────
   useEffect(() => {
-    let icpData: ICPAnalysis | null = null;
-    let website = '';
-    try {
-      const raw = localStorage.getItem('gojiberry_icp');
-      if (raw) icpData = JSON.parse(raw);
-      website = localStorage.getItem('gojiberry_website') ?? '';
-      const userRaw = localStorage.getItem('gojiberry_user');
-      if (userRaw) setUserInfo(JSON.parse(userRaw));
-    } catch { /* ignore */ }
-    setIcp(icpData);
-    // Always force fresh leads on mount to show dynamic data
-    localStorage.removeItem('gojiberry_leads');
-    fetchLeads(icpData, website, true);
+    async function init() {
+      let email = localStorage.getItem('gojiberry_session');
+      if (!email) {
+        email = 'demo@gojiberry.ai';
+        localStorage.setItem('gojiberry_session', email);
+        // Create demo user
+        await fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name: 'Ayazkhan', website: 'gojiberry.ai' })
+        });
+      }
+
+      try {
+        const [uRes, tRes, eRes, nRes] = await Promise.all([
+          fetch(`/api/user?email=${email}`),
+          fetch(`/api/threads?email=${email}`),
+          fetch(`/api/events?email=${email}`),
+          fetch(`/api/notifications?email=${email}`),
+        ]);
+
+        const uData = await uRes.json();
+        const tData = await tRes.json();
+        const eData = await eRes.json();
+        const nData = await nRes.json();
+
+        let currentIcp = null;
+        let currentWebsite = 'gojiberry.ai';
+        let currentKey = '';
+
+        if (uData.user) {
+          setUserInfo({ name: uData.user.name, email: uData.user.email, website: uData.user.website });
+          setIcp(uData.user.icp);
+          setGeminiKey(uData.user.geminiKey || '');
+          currentIcp = uData.user.icp;
+          currentWebsite = uData.user.website || currentWebsite;
+          currentKey = uData.user.geminiKey || '';
+        } else {
+          setUserInfo({ name: 'Ayazkhan', email, website: currentWebsite });
+        }
+
+        if (tData.threads) setThreads(tData.threads);
+        if (eData.events && eData.events.length > 0) setCalendarEvents(eData.events);
+        if (nData.notifications && nData.notifications.length > 0) setNotifications(nData.notifications);
+
+        // Fetch leads from DB or generate if empty
+        fetchLeads(currentIcp, currentWebsite, email, currentKey, false);
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    init();
   }, [fetchLeads]);
 
   // ── Activity feed ────────────────────────────────────────────────────────────
@@ -1365,11 +1400,19 @@ function DashboardInner() {
       })).slice(0, 5)]);
 
       // Add to notifications
-      setNotifications(prev => {
-        const updated = [{ id: Date.now(), icon: ICONS[idx], msg: newItem.msg, time: 'just now', unread: true }, ...prev].slice(0, 20);
-        setStore('gojiberry_notifications', updated);
-        return updated;
-      });
+      const newNotif = { icon: ICONS[idx], msg: newItem.msg, time: 'just now', unread: true };
+      const email = localStorage.getItem('gojiberry_session') || '';
+      if (email) {
+        fetch('/api/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, notification: newNotif })
+        }).then(res => res.json()).then(data => {
+          if (data.notification) {
+            setNotifications(prev => [data.notification, ...prev].slice(0, 20));
+          }
+        });
+      }
     }, 45000);
 
     return () => clearInterval(interval);
@@ -1408,7 +1451,7 @@ function DashboardInner() {
     }
   };
 
-  const handleBookDemo = useCallback((lead: Lead) => {
+  const handleBookDemo = useCallback(async (lead: Lead) => {
     const meetingTypes = ['Zoom', 'Google Meet', 'Teams'];
     const meetingType = meetingTypes[lead.id % meetingTypes.length];
     const meetingUrls: Record<string, string> = {
@@ -1418,8 +1461,9 @@ function DashboardInner() {
     };
     const days = ['Tomorrow', 'Aug 12', 'Aug 13', 'Aug 14', 'Aug 15'];
     const times = ['10:00 AM', '11:00 AM', '2:00 PM', '3:00 PM', '4:00 PM'];
-    const newEvent: CalendarEvent = {
-      id: Date.now(),
+    
+    const email = localStorage.getItem('gojiberry_session') || '';
+    const newEvent = {
       title: `Demo with ${lead.name.split(' ')[0]}`,
       company: lead.company,
       date: days[lead.id % days.length],
@@ -1431,59 +1475,77 @@ function DashboardInner() {
       prospectId: lead.id,
     };
 
-    setCalendarEvents(prev => {
-      const updated = [...prev, newEvent];
-      setStore('gojiberry_calendar', updated);
-      return updated;
+    // Save event to DB
+    const eRes = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, event: newEvent })
     });
+    const eData = await eRes.json();
+    if (eData.event) {
+      setCalendarEvents(prev => [...prev, eData.event]);
+    }
 
-    // Update lead status to booked
-    setLeads(prev => {
-      const updated = prev.map(l => l.id === lead.id ? { ...l, status: 'booked' as Lead['status'] } : l);
-      localStorage.setItem('gojiberry_leads', JSON.stringify({ leads: updated, ts: Date.now() }));
-      return updated;
+    // Update lead status to booked in DB
+    await fetch('/api/leads', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: lead.id, status: 'booked' })
     });
+    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'booked' } : l));
 
     showToast(`Demo booked with ${lead.name} — ${newEvent.date} at ${newEvent.time}!`, 'success');
 
-    // Add notification
-    setNotifications(prev => {
-      const updated = [{
-        id: Date.now(),
-        icon: '📅',
-        msg: `Demo booked with ${lead.name} at ${lead.company} — ${newEvent.date} ${newEvent.time} via ${meetingType}`,
-        time: 'just now',
-        unread: true,
-      }, ...prev].slice(0, 20);
-      setStore('gojiberry_notifications', updated);
-      return updated;
+    // Add notification to DB
+    const newNotif = {
+      icon: '📅',
+      msg: `Demo booked with ${lead.name} at ${lead.company} — ${newEvent.date} ${newEvent.time} via ${meetingType}`,
+      time: 'just now',
+      unread: true,
+    };
+    const nRes = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, notification: newNotif })
     });
+    const nData = await nRes.json();
+    if (nData.notification) {
+      setNotifications(prev => [nData.notification, ...prev].slice(0, 20));
+    }
   }, [showToast]);
 
-  const handleSendReply = useCallback((leadId: number, message: string) => {
+  const handleSendReply = useCallback(async (leadId: number, message: string) => {
+    const email = localStorage.getItem('gojiberry_session') || '';
+    
+    // Save thread message to DB
+    await fetch('/api/threads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, leadId, message })
+    });
     setThreads(prev => {
       const currentThread = prev[leadId] ?? [];
-      const updated = { ...prev, [leadId]: [...currentThread, message] };
-      setStore('gojiberry_threads', updated);
-      return updated;
+      return { ...prev, [leadId]: [...currentThread, message] };
     });
-    // Update lead status to contacted if pending
-    setLeads(prev => {
-      const updated = prev.map(l =>
-        l.id === leadId && l.status === 'pending'
-          ? { ...l, status: 'contacted' as Lead['status'] }
-          : l
-      );
-      localStorage.setItem('gojiberry_leads', JSON.stringify({ leads: updated, ts: Date.now() }));
-      return updated;
-    });
-  }, []);
+    
+    // Check if lead is pending and needs status update
+    const lead = leads.find(l => l.id === leadId);
+    if (lead && lead.status === 'pending') {
+      await fetch('/api/leads', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId, status: 'contacted' })
+      });
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: 'contacted' } : l));
+    }
+  }, [leads]);
 
   const handleRefreshLeads = useCallback(() => {
-    const website = localStorage.getItem('gojiberry_website') ?? '';
-    fetchLeads(icp, website, true);
+    const email = localStorage.getItem('gojiberry_session') || '';
+    const website = userInfo?.website || 'gojiberry.ai';
+    fetchLeads(icp, website, email, geminiKey, true);
     showToast('Scanning for fresh leads...', 'info');
-  }, [icp, fetchLeads, showToast]);
+  }, [icp, fetchLeads, showToast, userInfo, geminiKey]);
 
   const handleCalendarSync = useCallback(() => {
     // Add any booked prospects not yet in calendar
@@ -1502,11 +1564,11 @@ function DashboardInner() {
   const handleSaveSettings = useCallback((newIcp: ICPAnalysis, fromName: string, fromEmail: string) => {
     setIcp(newIcp);
     setUserInfo(prev => prev ? { ...prev, name: fromName, email: fromEmail } : { name: fromName, email: fromEmail, website: '' });
-    localStorage.removeItem('gojiberry_leads');
-    const website = localStorage.getItem('gojiberry_website') ?? '';
-    fetchLeads(newIcp, website, true);
+    const email = localStorage.getItem('gojiberry_session') || fromEmail;
+    const website = userInfo?.website || 'gojiberry.ai';
+    fetchLeads(newIcp, website, email, geminiKey, true);
     showToast('Settings saved! Refreshing leads with new ICP...', 'success');
-  }, [fetchLeads, showToast]);
+  }, [fetchLeads, showToast, userInfo, geminiKey]);
 
   const unreadCount = notifications.filter(n => n.unread).length;
   const inboxUnread = leads.filter(l => l.status === 'replied').length;
@@ -1604,12 +1666,14 @@ function DashboardInner() {
                       className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl border border-[#E2E8F0] shadow-xl z-40 overflow-hidden">
                       <div className="px-4 py-3 border-b border-[#F1F5F9] flex items-center justify-between">
                         <span className="font-bold text-sm text-[#0F172A]">Notifications</span>
-                        <button onClick={() => {
-                          setNotifications(prev => {
-                            const updated = prev.map(n => ({ ...n, unread: false }));
-                            setStore('gojiberry_notifications', updated);
-                            return updated;
+                        <button onClick={async () => {
+                          const email = localStorage.getItem('gojiberry_session') || '';
+                          await fetch('/api/notifications', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, markAllRead: true })
                           });
+                          setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
                           showToast('All marked as read', 'success');
                         }} className="text-xs text-[#FF5A36] font-semibold hover:underline">Mark all read</button>
                       </div>

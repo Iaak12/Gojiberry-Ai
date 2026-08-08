@@ -24,16 +24,30 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    // Simulate auth, then persist session
-    await new Promise((r) => setTimeout(r, 1200));
-    // Save user session so dashboard personalizes with their info
-    const existingUser = JSON.parse(localStorage.getItem('gojiberry_user') ?? 'null');
-    const name = existingUser?.name ?? email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    localStorage.setItem('gojiberry_user', JSON.stringify({
-      name,
-      email,
-      website: existingUser?.website ?? '',
-    }));
+    
+    // Check if user exists in DB
+    try {
+      const res = await fetch(`/api/user?email=${email}`);
+      const data = await res.json();
+      
+      if (!data.user) {
+        // If user doesn't exist, create a generic one for demo purposes
+        const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        await fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name, website: 'gojiberry.ai' })
+        });
+      }
+      
+      localStorage.setItem('gojiberry_session', email);
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred during sign in.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(false);
     window.location.href = '/dashboard';
   };

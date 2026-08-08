@@ -1,0 +1,6 @@
+{
+  "name": "Gojiberry AI",
+  "description": "Pixel-perfect clone of Gojiberry AI homepage - AI User Research Platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

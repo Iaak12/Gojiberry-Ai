@@ -407,6 +407,25 @@ function ProspectsView({
                     <Linkedin className="w-4 h-4" /> Generate LinkedIn Message
                   </button>
                   <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/integrations/hubspot', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ leadData: selectedProspect })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          alert('Synced to HubSpot!');
+                        } else {
+                          alert(data.error || 'Failed to sync');
+                        }
+                      } catch (e) { alert('Failed to sync to HubSpot'); }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3 border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-[#FF5A36] text-sm font-bold rounded-xl transition-colors">
+                    <CheckCircle2 className="w-4 h-4" /> Push to HubSpot
+                  </button>
+                  <button
                     onClick={() => { onBookDemo(selectedProspect); setSelectedProspect(null); }}
                     className="w-full flex items-center justify-center gap-2 py-3 border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-[#475569] text-sm font-semibold rounded-xl transition-colors">
                     <Calendar className="w-4 h-4" /> Book a Demo
@@ -431,6 +450,13 @@ function ProspectsView({
             <option>Default List</option>
             <option>Founders Campaign 2026</option>
           </select>
+
+          <button 
+            onClick={() => window.open('/api/leads/export', '_blank')}
+            className="flex items-center gap-1.5 px-3 py-2 border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#475569] hover:border-[#FF5A36] hover:text-[#FF5A36] transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Export CSV
+          </button>
 
           <div className="relative">
             <button onClick={() => setFilterOpen(!filterOpen)}
@@ -996,6 +1022,27 @@ function SettingsView({
 
   return (
     <div className="space-y-6">
+      
+      <div className="bg-gradient-to-r from-[#FF5A36] to-[#FF8A66] rounded-xl shadow-sm p-6 text-white flex justify-between items-center">
+        <div>
+          <h3 className="font-bold text-lg mb-1">Upgrade to Gojiberry Pro</h3>
+          <p className="text-sm opacity-90">Unlock unlimited leads, CRM integrations, and advanced AI scoring.</p>
+        </div>
+        <button 
+          onClick={async () => {
+            try {
+              const res = await fetch('/api/stripe/checkout', { method: 'POST', body: JSON.stringify({}) });
+              const data = await res.json();
+              if (data.url) window.location.href = data.url;
+              else alert(data.error || 'Failed to initiate checkout');
+            } catch (e) { alert('Checkout failed'); }
+          }}
+          className="px-6 py-2.5 bg-white text-[#FF5A36] font-bold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+        >
+          Upgrade Now
+        </button>
+      </div>
+
       <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-9 h-9 rounded-lg bg-[#FFF2ED] flex items-center justify-center"><Target className="w-5 h-5 text-[#FF5A36]" /></div>

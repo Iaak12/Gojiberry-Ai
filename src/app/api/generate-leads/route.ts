@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { generateLeadsForUser } from '@/lib/lead-generator';
 
+export interface Lead {
+  id?: any;
+  _id?: any;
+  name: string;
+  role: string;
+  company: string;
+  email: string;
+  linkedin: string;
+  signal: string;
+  score: number;
+  industry: string;
+  status: string;
+  initials?: string;
+  color?: string;
+  time?: string;
+}
+
 // Mock pool for development / missing API keys
 const LEAD_POOL = [
   { name: 'Sarah Chen', role: 'VP of Sales', company: 'Meridian Analytics', email: 'sarah.chen@meridiananalytics.com', linkedin: 'linkedin.com/in/sarahchen', signal: 'Posted: "Scaling our SDR team from 3 to 12 reps this quarter — any tooling recommendations?"', score: 94, industry: 'Analytics SaaS' },

@@ -26,7 +26,7 @@ ${JSON.stringify(rawProfiles.map((p: any) => ({
   summary: p.profile?.summary,
   occupation: p.profile?.occupation,
   experiences: p.profile?.experiences?.slice(0, 2),
-  linkedin_url: \`https://linkedin.com/in/\${p.profile?.public_identifier}\`
+  linkedin_url: `https://linkedin.com/in/${p.profile?.public_identifier}`
 })), null, 2)}
 
 Task:

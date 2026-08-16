@@ -10,8 +10,7 @@ import { sendEmail } from "../lib/resend";
 import { checkRateLimit } from "../lib/ratelimit";
 
 export const runAutopilotCron = inngest.createFunction(
-  { id: "run-autopilot-cron" },
-  { cron: "0 9 * * *" }, // Runs daily at 9:00 AM UTC
+  { id: "run-autopilot-cron", triggers: [{ cron: "0 9 * * *" }] },
   async ({ step }) => {
     const usersCount = await step.run("fetch-and-process-active-users", async () => {
       await connectToDatabase();
@@ -45,8 +44,7 @@ export const runAutopilotCron = inngest.createFunction(
 );
 
 export const processCampaignQueue = inngest.createFunction(
-  { id: "process-campaign-queue" },
-  { event: "campaign/step.execute" },
+  { id: "process-campaign-queue", triggers: [{ event: "campaign/step.execute" }] },
   async ({ event, step }) => {
     const { campaignId, leadId, stepIndex = 0 } = event.data;
     

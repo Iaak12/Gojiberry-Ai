@@ -9,7 +9,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 export async function processLinkedInProfile(profileUrl: string, userId: string) {
   try {
     // 1. Fetch data from LinkedIn via Proxycurl
-    const profileData = await getLinkedInProfile(profileUrl);
+    const proxycurlKey = process.env.PROXYCURL_API_KEY || '';
+    const profileData = await getLinkedInProfile(profileUrl, proxycurlKey);
     
     if (!profileData) {
       throw new Error("Could not fetch profile data");

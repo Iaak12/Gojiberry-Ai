@@ -357,8 +357,8 @@ function ProspectsView({
                     <h3 className="font-bold text-[#0F172A]">{selectedProspect.name}</h3>
                     <p className="text-sm text-[#64748B]">{selectedProspect.role} · {selectedProspect.company}</p>
                     <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
-                      style={{ color: STATUS_STYLE[selectedProspect.status].color, backgroundColor: STATUS_STYLE[selectedProspect.status].bg }}>
-                      {STATUS_STYLE[selectedProspect.status].icon} {STATUS_STYLE[selectedProspect.status].label}
+                      style={{ color: STATUS_STYLE[selectedProspect.status || 'pending']?.color, backgroundColor: STATUS_STYLE[selectedProspect.status || 'pending']?.bg }}>
+                      {STATUS_STYLE[selectedProspect.status || 'pending']?.icon} {STATUS_STYLE[selectedProspect.status || 'pending']?.label}
                     </span>
                   </div>
                 </div>
@@ -716,7 +716,7 @@ function InboxView({
                   </div>
                 </div>
                 <div className="flex-1 p-6 space-y-4 overflow-auto" style={{ maxHeight: 360 }}>
-                  {displayThread.map((msg, i) => (
+                  {displayThread.map((msg: any, i: any) => (
                     <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
                       {i % 2 !== 0 && (
                         <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white text-[10px] shrink-0 mr-2" style={{ backgroundColor: lead.color }}>

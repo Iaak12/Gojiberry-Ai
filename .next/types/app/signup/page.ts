@@ -1,4 +1,4 @@
-// File: C:\Users\Ayazkhan\Pictures\gojiberry-ai\src\app\signup\page.tsx
+// File: E:\New folder (2)\Gojiberry-Ai\src\app\signup\page.tsx
 import * as entry from '../../../../src/app/signup/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

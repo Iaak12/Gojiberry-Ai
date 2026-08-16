@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Gojiberry AI Automator",
+  "version": "1.0",
+  "description": "Automate LinkedIn messaging locally to prevent account bans.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

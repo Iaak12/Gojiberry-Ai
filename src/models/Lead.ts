@@ -14,6 +14,9 @@ const LeadSchema = new mongoose.Schema({
   email: { type: String, required: true },
   linkedin: { type: String, required: true },
   industry: { type: String, required: true },
+  listId: { type: String, default: 'default' },
+  signalMatched: { type: String, default: '' },
+  fitStatus: { type: String, enum: ['fit', 'no-fit', 'unrated'], default: 'unrated' },
 }, { timestamps: true });
 
 export default mongoose.models.Lead || mongoose.model('Lead', LeadSchema);

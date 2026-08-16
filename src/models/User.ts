@@ -16,6 +16,14 @@ const UserSchema = new mongoose.Schema({
     companySize: { type: String, default: '' },
     geography: { type: String, default: '' },
   },
+  settings: {
+    linkedInConnected: { type: Boolean, default: false },
+    weeklyQuota: { type: Number, default: 100 },
+    activeDays: [{ type: String }],
+    autoEnrichEmail: { type: Boolean, default: false },
+    autoEnrichPhone: { type: Boolean, default: false },
+    autoGenerateAiMessages: { type: Boolean, default: false },
+  },
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

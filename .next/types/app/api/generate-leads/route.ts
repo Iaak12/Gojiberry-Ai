@@ -1,4 +1,4 @@
-// File: C:\Users\Ayazkhan\Pictures\gojiberry-ai\src\app\api\generate-leads\route.ts
+// File: E:\New folder (2)\Gojiberry-Ai\src\app\api\generate-leads\route.ts
 import * as entry from '../../../../../src/app/api/generate-leads/route.js'
 import type { NextRequest } from 'next/server.js'
 

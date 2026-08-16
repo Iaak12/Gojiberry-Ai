@@ -425,6 +425,13 @@ function ProspectsView({
             <input type="text" placeholder="Search by name, company, signal..." value={search} onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-[#E2E8F0] rounded-lg bg-[#F8FAFC] text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#FF5A36]" />
           </div>
+          
+          <select className="px-3 py-2 text-xs border border-[#E2E8F0] rounded-lg bg-white text-[#475569] focus:outline-none focus:border-[#FF5A36]">
+            <option>All Lists</option>
+            <option>Default List</option>
+            <option>Founders Campaign 2026</option>
+          </select>
+
           <div className="relative">
             <button onClick={() => setFilterOpen(!filterOpen)}
               className="flex items-center gap-1.5 px-3 py-2 border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#475569] hover:border-[#FF5A36] hover:text-[#FF5A36] transition-colors">
@@ -444,8 +451,18 @@ function ProspectsView({
               )}
             </AnimatePresence>
           </div>
+
+          <div className="flex gap-2 border-l border-[#E2E8F0] pl-3 ml-1">
+            <button className="flex items-center gap-1.5 px-3 py-2 border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#0F172A] bg-white hover:bg-[#F8FAFC] transition-colors">
+              <ExternalLink className="w-3.5 h-3.5" /> Send to CRM
+            </button>
+            <button className="flex items-center gap-1.5 px-3 py-2 border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#0F172A] bg-white hover:bg-[#F8FAFC] transition-colors">
+              <Save className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          </div>
+
           <button onClick={onRefresh} disabled={leadsLoading}
-            className="flex items-center gap-1.5 px-3 py-2 border border-[#E2E8F0] rounded-lg text-xs font-semibold text-[#475569] hover:border-[#FF5A36] hover:text-[#FF5A36] transition-colors disabled:opacity-50">
+            className="flex items-center gap-1.5 px-3 py-2 border border-[#E2E8F0] rounded-lg text-xs font-semibold text-white bg-[#FF5A36] hover:bg-[#E04826] transition-colors disabled:opacity-50 ml-auto">
             <RefreshCw className={`w-3.5 h-3.5 ${leadsLoading ? 'animate-spin' : ''}`} />
             {leadsLoading ? 'Scanning...' : 'Refresh Leads'}
           </button>
@@ -1165,18 +1182,22 @@ function DashboardMainView({
           <h2 className="font-bold text-[#0F172A] text-sm mb-5">Quick Actions</h2>
           <div className="space-y-2.5">
             {[
-              { label: 'Review pending replies',  count: leads.filter(l => l.status === 'replied').length,  nav: 'inbox',     color: 'bg-[#FFF2ED] text-[#FF5A36] border-[#FFD9CD]' },
-              { label: 'Approve outreach drafts', count: leads.filter(l => l.status === 'pending').length,  nav: 'prospects', color: 'bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE]' },
+              { label: 'Create AI Agent',         count: null,                                               href: '/dashboard/agents',  color: 'bg-[#FFF2ED] text-[#FF5A36] border-[#FFD9CD]' },
+              { label: 'Build Outreach Campaign', count: null,                                               href: '/dashboard/campaigns', color: 'bg-[#EFF6FF] text-[#3B82F6] border-[#BFDBFE]' },
               { label: 'AI prospects found',      count: leads.length,                                       nav: 'prospects', color: 'bg-[#F0FDF4] text-[#22C55E] border-[#BBF7D0]' },
-              { label: 'Update ICP settings',     count: null,                                               nav: 'settings',  color: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]' },
-            ].map((action) => (
-              <button key={action.label}
-                onClick={() => onNavigate(action.nav)}
+              { label: 'Company Settings',        count: null,                                               href: '/dashboard/settings',  color: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]' },
+            ].map((action) => {
+              const ActionWrapper = action.href ? Link : 'button';
+              const props = action.href ? { href: action.href } : { onClick: () => onNavigate(action.nav as string) };
+              return (
+              <ActionWrapper key={action.label}
+                {...(props as any)}
                 className={`w-full flex items-center justify-between px-3 py-2.5 border rounded-lg text-xs font-semibold transition-all hover:opacity-80 active:scale-[0.99] ${action.color}`}>
                 <span>{action.label}</span>
                 {action.count !== null && <span className="px-2 py-0.5 bg-white/70 rounded-full font-bold">{leadsLoading ? '...' : action.count}</span>}
-              </button>
-            ))}
+              </ActionWrapper>
+              );
+            })}
           </div>
           {leads.find(l => l.status === 'booked') && (
             <div className="mt-5 pt-4 border-t border-[#F1F5F9]">
@@ -1269,6 +1290,14 @@ function DashboardInner() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(DEFAULT_CALENDAR_EVENTS);
   const [threads, setThreads] = useState<Record<number, string[]>>({});
   const [geminiKey, setGeminiKey] = useState<string>('');
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [icp, setIcp] = useState<ICPAnalysis | null>(null);
+  const [activityFeed, setActivityFeed] = useState<{icon: string, msg: string, time: string}[]>([]);
+  const [emailModal, setEmailModal] = useState<EmailModal>({ open: false, loading: false, subject: '', body: '', prospect: null });
+  const [linkedInModal, setLinkedInModal] = useState<LinkedInModal>({ open: false, loading: false, message: '', prospect: null });
+  const activityCounter = useRef(0);
   const { showToast } = useToast();
 
   // ── Load leads ──────────────────────────────────────────────────────────────

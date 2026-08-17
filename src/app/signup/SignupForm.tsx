@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Eye, EyeOff, ArrowRight, Mail, Lock, Globe, User, Check, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { ICPAnalysis } from '@/app/api/analyze-website/route';
 
 const STEPS = ['Your website', 'Your account', 'Launch agent'];
@@ -18,6 +18,7 @@ const ANALYZING_MSGS = [
 
 export default function SignupForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const initialWebsite = searchParams.get('website') || '';
 
   const [step, setStep] = useState(initialWebsite ? 1 : 0);
@@ -94,7 +95,7 @@ export default function SignupForm() {
     
     // Simulate finding leads in background
     await new Promise((r) => setTimeout(r, 2200));
-    window.location.href = '/dashboard';
+    router.push('/dashboard');
   };
 
   return (

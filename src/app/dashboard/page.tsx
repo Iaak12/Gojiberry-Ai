@@ -1277,7 +1277,7 @@ function DashboardMainView({
               </thead>
               <tbody className="divide-y divide-[#F8FAFC]">
                 {topLeads.map((p, i) => {
-                  const s = STATUS_STYLE[p.status];
+                  const s = STATUS_STYLE[p?.status] || STATUS_STYLE.pending;
                   return (
                     <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 + i * 0.06 }}
                       className="hover:bg-[#FAFAFA] transition-colors">

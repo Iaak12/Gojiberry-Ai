@@ -2,31 +2,31 @@
   "..\\node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
     "id": 5139,
     "files": [
-      "static/chunks/139.7a5a8e93a21948c1.js"
+      "static/chunks/5139.c5e46d26064a85db.js"
     ]
   },
   "..\\node_modules\\next\\dist\\client\\index.js -> ../pages/_error": {
     "id": 1646,
     "files": [
-      "static/chunks/646.f342b7cffc01feb0.js"
+      "static/chunks/1646.9123ee47220ed70b.js"
     ]
   },
   "app\\dashboard\\page.tsx -> next-auth/react": {
     "id": 6199,
     "files": [
-      "static/chunks/199.154912ef8ba10aa4.js"
+      "static/chunks/6199.e4923602b933f971.js"
     ]
   },
   "app\\login\\page.tsx -> next-auth/react": {
     "id": 6199,
     "files": [
-      "static/chunks/199.154912ef8ba10aa4.js"
+      "static/chunks/6199.e4923602b933f971.js"
     ]
   },
   "app\\signup\\SignupForm.tsx -> next-auth/react": {
     "id": 6199,
     "files": [
-      "static/chunks/199.154912ef8ba10aa4.js"
+      "static/chunks/6199.e4923602b933f971.js"
     ]
   }
 }

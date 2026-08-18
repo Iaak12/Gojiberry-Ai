@@ -16,7 +16,7 @@ import type { ICPAnalysis } from '@/app/api/analyze-website/route';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
-interface UserInfo { name: string; email: string; website: string; }
+interface UserInfo { name: string; email: string; website: string; isSuperadmin?: boolean; }
 interface EmailModal { open: boolean; loading: boolean; subject: string; body: string; prospect: Lead | null; }
 interface LinkedInModal { open: boolean; loading: boolean; message: string; prospect: Lead | null; }
 interface CalendarEvent {
@@ -1419,14 +1419,14 @@ function DashboardInner() {
         let currentKey = '';
 
         if (uData.user) {
-          setUserInfo({ name: uData.user.name, email: uData.user.email, website: uData.user.website });
+          setUserInfo({ name: uData.user.name, email: uData.user.email, website: uData.user.website, isSuperadmin: uData.isSuperadmin });
           setIcp(uData.user.icp);
           setGeminiKey(uData.user.geminiKey || '');
           currentIcp = uData.user.icp;
           currentWebsite = uData.user.website || currentWebsite;
           currentKey = uData.user.geminiKey || '';
         } else {
-          setUserInfo({ name: 'Ayazkhan', email, website: currentWebsite });
+          setUserInfo({ name: 'Ayazkhan', email, website: currentWebsite, isSuperadmin: false });
         }
 
         if (tData.threads) setThreads(tData.threads);
@@ -1687,8 +1687,8 @@ function DashboardInner() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 space-y-0.5">
-          {NAV_ITEMS.map((item) => (
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-auto">
+          {(userInfo?.isSuperadmin ? [...NAV_ITEMS, { id: 'admin', icon: <Target className="w-5 h-5" />, label: 'Admin Panel' }] : NAV_ITEMS).map((item) => (
             <button key={item.id} onClick={() => setActiveNav(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all text-left ${activeNav === item.id ? 'bg-[#FFF2ED] text-[#FF5A36]' : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'}`}>
               <span className={activeNav === item.id ? 'text-[#FF5A36]' : 'text-[#94A3B8]'}>{item.icon}</span>
@@ -1831,6 +1831,7 @@ function DashboardInner() {
               {activeNav === 'outreach'  && <OutreachView leads={leads} />}
               {activeNav === 'calendar'  && <CalendarView events={calendarEvents} onSync={handleCalendarSync} />}
               {activeNav === 'playbooks' && <PlaybooksView />}
+              {activeNav === 'admin' && userInfo?.isSuperadmin && <SuperadminDashboardView />}
               {activeNav === 'settings'  && (
               <SettingsView
                 icp={icp}

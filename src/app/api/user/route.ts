@@ -13,8 +13,9 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    const isSuperadmin = email.toLowerCase() === (process.env.SUPERADMIN_EMAIL || 'superadmin@gojiberry.ai').toLowerCase();
 
-    return NextResponse.json({ user });
+    return NextResponse.json({ user, isSuperadmin });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
@@ -36,8 +37,9 @@ export async function POST(req: NextRequest) {
       { $set: updateData },
       { returnDocument: 'after', upsert: true }
     ).select('-password');
+    const isSuperadmin = normalizedEmail === (process.env.SUPERADMIN_EMAIL || 'superadmin@gojiberry.ai').toLowerCase();
 
-    return NextResponse.json({ user });
+    return NextResponse.json({ user, isSuperadmin });
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

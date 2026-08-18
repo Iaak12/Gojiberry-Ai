@@ -19,22 +19,22 @@ export async function searchLinkedInProfiles(
     throw new Error('Apify API token is missing.');
   }
 
-  // Fallback to mock data or simplified search if Apify actor is not specified.
-  // Note: Apify's API requires specifying an Actor ID. 
-  // For this implementation, we will assume a generic LinkedIn search actor.
-  // E.g. 'rockapis/linkedin-search-scraper'
-  const actorId = 'rockapis/linkedin-search-scraper';
+  const actorId = 'apify/google-search-scraper';
   
-  const keywords = [...targetRoles, ...targetIndustries].join(' ');
-  const searchQuery = keywords || 'founder OR ceo';
+  const roles = targetRoles.map(r => `"${r}"`).join(' OR ');
+  const industries = targetIndustries.map(i => `"${i}"`).join(' OR ');
+  
+  // Create a precise google dork for linkedin profiles
+  const searchQuery = `site:linkedin.com/in/ ${roles ? `(${roles})` : ''} ${industries ? `(${industries})` : ''}`.trim();
 
   try {
     const syncResponse = await fetch(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiToken}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        searchUrl: `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(searchQuery)}`,
-        limit: limit
+        queries: searchQuery,
+        resultsPerPage: limit,
+        maxPagesPerQuery: 1
       })
     });
 
@@ -45,19 +45,32 @@ export async function searchLinkedInProfiles(
 
     const items = await syncResponse.json();
     
-    // Map Apify output to Proxycurl format to minimize changes in other files
-    return items.map((item: any) => ({
-      public_identifier: item.linkedinUrl?.split('/').filter(Boolean).pop() || item.id,
-      profile_pic_url: item.profilePicture || '',
-      first_name: item.firstName || item.name?.split(' ')[0] || '',
-      last_name: item.lastName || item.name?.split(' ').slice(1).join(' ') || '',
-      occupation: item.headline || '',
-      headline: item.headline || '',
-      summary: item.summary || item.about || '',
-      experiences: item.experience || []
-    }));
+    // Parse Google Search results into Profile format
+    const profiles = items.flatMap((item: any) => {
+      const organicResults = item.organicResults || [];
+      return organicResults.map((result: any) => {
+        // LinkedIn titles are usually "Name - Role - Company | LinkedIn"
+        const titleParts = result.title.split(' - ');
+        const name = titleParts[0] || '';
+        const roleAndCompany = titleParts[1] || '';
+        
+        return {
+          public_identifier: result.url?.split('/').filter(Boolean).pop() || '',
+          profile_pic_url: '',
+          first_name: name.split(' ')[0] || name,
+          last_name: name.split(' ').slice(1).join(' ') || '',
+          occupation: roleAndCompany || result.description?.slice(0, 50) || '',
+          headline: roleAndCompany || '',
+          summary: result.description || '',
+          experiences: [],
+          linkedinUrl: result.url
+        };
+      });
+    });
+
+    return profiles.slice(0, limit);
   } catch (error) {
-    console.error('Failed to search LinkedIn profiles via Apify:', error);
+    console.error('Failed to search LinkedIn profiles via Apify Google Search:', error);
     return [];
   }
 }

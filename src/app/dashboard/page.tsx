@@ -201,7 +201,26 @@ function EmailModal({ modal, onClose }: { modal: EmailModal; onClose: () => void
                       <Copy className="w-4 h-4" /> Copy Email
                     </button>
                     <button
-                      onClick={() => { showToast(`Email queued for ${modal.prospect?.name}!`, 'success'); onClose(); }}
+                      onClick={async () => { 
+                        if (!modal.prospect) return;
+                        showToast('Sending email...', 'info'); 
+                        try {
+                          const res = await fetch('/api/send-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                              to: modal.prospect.email, 
+                              subject: editedSubject, 
+                              html: editedBody 
+                            })
+                          });
+                          if (!res.ok) throw new Error('Failed to send');
+                          showToast(`Email queued for ${modal.prospect.name}!`, 'success'); 
+                        } catch (e) {
+                          showToast('Failed to send email', 'error');
+                        }
+                        onClose(); 
+                      }}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#FF5A36] hover:bg-[#E04826] text-white rounded-xl text-sm font-bold transition-colors">
                       <Send className="w-4 h-4" /> Send via Gojiberry
                     </button>

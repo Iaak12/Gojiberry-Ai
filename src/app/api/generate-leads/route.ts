@@ -37,11 +37,19 @@ function shuffle<T>(arr: T[], seed: number): T[] {
   return a;
 }
 
+import { checkRateLimit } from '@/lib/ratelimit';
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const email = session.user.email;
+    const rl = await checkRateLimit(email);
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Please upgrade to Pro for more leads.' }, { status: 429 });
     }
 
     const { icp, website, clientApiKey } = await req.json().catch(() => ({}));

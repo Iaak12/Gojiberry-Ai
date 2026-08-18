@@ -25,13 +25,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid lead data. Email is required." }, { status: 400 });
     }
 
-    // MOCK HUBSPOT API CALL
-    // In production, you would retrieve the user's HubSpot OAuth token from the database here.
-    /*
+    const hubspotToken = process.env.HUBSPOT_ACCESS_TOKEN;
+    if (!hubspotToken) {
+      return NextResponse.json({ error: "HubSpot token not configured." }, { status: 500 });
+    }
+
     const res = await fetch('https://api.hubapi.com/crm/v3/objects/contacts', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${user.hubspotToken}`,
+        'Authorization': `Bearer ${hubspotToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -44,9 +46,14 @@ export async function POST(req: NextRequest) {
         }
       })
     });
-    */
 
-    console.log(`[HubSpot Mock] Successfully pushed contact ${leadData.email} to CRM.`);
+    if (!res.ok) {
+      const errData = await res.json();
+      console.error("HubSpot error:", errData);
+      return NextResponse.json({ error: "Failed to push to HubSpot" }, { status: res.status });
+    }
+
+    console.log(`[HubSpot] Successfully pushed contact ${leadData.email} to CRM.`);
 
     return NextResponse.json({ success: true, message: "Lead pushed to HubSpot successfully" });
   } catch (error: any) {

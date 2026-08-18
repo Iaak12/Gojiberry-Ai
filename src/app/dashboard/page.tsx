@@ -1503,7 +1503,7 @@ function DashboardInner() {
           currentWebsite = uData.user.website || currentWebsite;
           currentKey = uData.user.geminiKey || '';
         } else {
-          setUserInfo({ name: 'Ayazkhan', email, website: currentWebsite, isSuperadmin: false });
+          setUserInfo({ name: uData.isSuperadmin ? 'Superadmin' : 'Ayazkhan', email, website: currentWebsite, isSuperadmin: uData.isSuperadmin || false });
         }
 
         if (tData.threads) setThreads(tData.threads);

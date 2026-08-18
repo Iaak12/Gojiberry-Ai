@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
     await connectToDatabase();
     const user = await User.findOne({ email: email.toLowerCase() }).select('-password');
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
     const isSuperadmin = email.toLowerCase() === (process.env.SUPERADMIN_EMAIL || 'superadmin@gojiberry.ai').toLowerCase();
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found', isSuperadmin }, { status: 404 });
+    }
 
     return NextResponse.json({ user, isSuperadmin });
   } catch (error) {

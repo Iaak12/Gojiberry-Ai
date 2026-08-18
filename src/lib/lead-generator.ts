@@ -1,4 +1,4 @@
-import { searchLinkedInProfiles } from '@/lib/proxycurl';
+import { searchLinkedInProfiles } from '@/lib/apify';
 import { scoreAndEnrichLeads } from '@/lib/lead-scorer';
 import connectToDatabase from '@/lib/mongodb';
 import Lead from '@/models/Lead';
@@ -10,21 +10,21 @@ export async function generateLeadsForUser({
   icp,
   website,
   geminiKey,
-  proxycurlKey
+  apifyToken
 }: {
   userEmail: string;
   icp: any;
   website: string;
   geminiKey: string;
-  proxycurlKey: string;
+  apifyToken: string;
 }) {
   const targetRoles = icp?.targetRoles || [];
   const targetIndustries = icp?.targetIndustries || [];
   
-  const rawProfiles = await searchLinkedInProfiles(proxycurlKey, targetRoles, targetIndustries, 8);
+  const rawProfiles = await searchLinkedInProfiles(apifyToken, targetRoles, targetIndustries, 8);
   
   if (!rawProfiles || rawProfiles.length === 0) {
-    return { leads: [], source: 'proxycurl', message: 'No profiles found matching ICP.' };
+    return { leads: [], source: 'apify', message: 'No profiles found matching ICP.' };
   }
 
   const scoredLeads = await scoreAndEnrichLeads(geminiKey, rawProfiles, icp, website);

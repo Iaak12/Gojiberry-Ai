@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { getLinkedInProfile } from "@/lib/proxycurl";
+import { getLinkedInProfile } from "@/lib/apify";
 import connectToDatabase from "@/lib/mongodb";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
@@ -8,9 +8,9 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function processLinkedInProfile(profileUrl: string, userId: string) {
   try {
-    // 1. Fetch data from LinkedIn via Proxycurl
-    const proxycurlKey = process.env.PROXYCURL_API_KEY || '';
-    const profileData = await getLinkedInProfile(profileUrl, proxycurlKey);
+    // 1. Fetch data from LinkedIn via Apify
+    const apifyToken = process.env.APIFY_API_TOKEN || '';
+    const profileData = await getLinkedInProfile(profileUrl, apifyToken);
     
     if (!profileData) {
       throw new Error("Could not fetch profile data");
@@ -52,7 +52,7 @@ export async function processLinkedInProfile(profileUrl: string, userId: string)
       const newLead = await Lead.create({
         userId,
         linkedInUrl: profileUrl,
-        name: profileData.name || profileData.full_name,
+        name: `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() || 'Unknown',
         headline: profileData.headline,
         score: result.score,
         reasoning: result.reasoning,

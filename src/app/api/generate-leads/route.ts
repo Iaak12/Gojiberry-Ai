@@ -47,12 +47,12 @@ export async function POST(req: NextRequest) {
     const { icp, website, clientApiKey } = await req.json().catch(() => ({}));
     
     const geminiKey = (clientApiKey && clientApiKey !== 'MY_GEMINI_API_KEY') ? clientApiKey : process.env.GEMINI_API_KEY;
-    const proxycurlKey = process.env.PROXYCURL_API_KEY;
+    const apifyToken = process.env.APIFY_API_TOKEN;
 
     let leadsResponse;
 
     // 1. If keys are missing, fallback to mock data
-    if (!proxycurlKey || proxycurlKey === 'your_proxycurl_key_here' || !geminiKey || geminiKey === 'MY_GEMINI_API_KEY') {
+    if (!apifyToken || !geminiKey || geminiKey === 'MY_GEMINI_API_KEY') {
       console.warn("API Keys missing. Falling back to mock data.");
       await new Promise(r => setTimeout(r, 1000));
       const seed = Math.floor(Date.now() / 1000);
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         icp,
         website,
         geminiKey,
-        proxycurlKey
+        apifyToken
       });
     }
 

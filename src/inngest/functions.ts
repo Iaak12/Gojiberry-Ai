@@ -29,7 +29,7 @@ export const runAutopilotCron = inngest.createFunction(
             icp: user.icp,
             website: user.website || 'Our Company',
             geminiKey,
-            proxycurlKey: process.env.PROXYCURL_API_KEY || ''
+            apifyToken: process.env.APIFY_API_TOKEN || ''
           });
           processedCount++;
         } catch (e) {

@@ -511,7 +511,7 @@ function ProspectsView({
                   <tr><td colSpan={6} className="px-5 py-10 text-center text-sm text-[#94A3B8]">No prospects match your search.</td></tr>
                 ) : (
                   filtered.map((p, i) => {
-                    const s = STATUS_STYLE[p.status];
+                    const s = STATUS_STYLE[p?.status] || STATUS_STYLE.pending;
                     return (
                       <motion.tr key={p.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                         className="hover:bg-[#FAFAFA] transition-colors">

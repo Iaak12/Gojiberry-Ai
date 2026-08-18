@@ -47,13 +47,14 @@ Return ONLY the reply text. No JSON, no subject line, no labels.`;
     });
 
     const reply = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+    
+    if (!reply) {
+      return NextResponse.json({ error: 'Failed to generate reply.' }, { status: 500 });
+    }
+
     return NextResponse.json({ reply, source: 'gemini' });
-  } catch (err) {
+  } catch (err: any) {
     console.error('generate-reply error:', err);
-    const firstName = prospect?.name?.split(' ')[0] ?? 'there';
-    return NextResponse.json({
-      reply: `Sounds great, ${firstName} — let me pull up a few slots that work.\n\nWould Thursday at 2pm or Friday at 10am EST work for a 20-minute call?`,
-      source: 'mock',
-    });
+    return NextResponse.json({ error: err.message || 'Failed to generate reply' }, { status: 500 });
   }
 }

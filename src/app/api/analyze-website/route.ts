@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
 
 export interface ICPAnalysis {
   companyDescription: string;
@@ -8,15 +9,6 @@ export interface ICPAnalysis {
   companySize: string;
   geography: string;
 }
-
-const MOCK_ICP: ICPAnalysis = {
-  companyDescription: 'A modern SaaS platform helping B2B companies automate their sales operations.',
-  targetRoles: ['VP of Sales', 'Head of Growth', 'Founder / CEO', 'Sales Operations Manager'],
-  targetIndustries: ['SaaS', 'FinTech', 'MarTech', 'E-commerce'],
-  valueProposition: 'Reduce manual prospecting by 80% with AI-powered lead discovery and outreach.',
-  companySize: '10–500 employees',
-  geography: 'North America, Europe',
-};
 
 export async function POST(req: NextRequest) {
   const { url, clientApiKey } = await req.json();
@@ -28,9 +20,7 @@ export async function POST(req: NextRequest) {
   const apiKey = (clientApiKey && clientApiKey !== 'MY_GEMINI_API_KEY') ? clientApiKey : process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
-    // Graceful fallback to mock data
-    await new Promise((r) => setTimeout(r, 800));
-    return NextResponse.json({ icp: MOCK_ICP, source: 'mock' });
+    return NextResponse.json({ error: 'Gemini API key is required to analyze website.' }, { status: 400 });
   }
 
   try {
@@ -73,18 +63,21 @@ Return ONLY valid JSON (no markdown, no explanation) in this exact shape:
 }`;
 
     const response = await genai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const icp: ICPAnalysis = JSON.parse(cleaned);
+    const result: ICPAnalysis = JSON.parse(cleaned);
 
-    return NextResponse.json({ icp, source: 'gemini' });
-  } catch (err) {
-    console.error('Gemini analysis error:', err);
-    // Return mock data on any error
-    return NextResponse.json({ icp: MOCK_ICP, source: 'mock' });
+    if (!result || !result.targetRoles || result.targetRoles.length === 0) {
+      return NextResponse.json({ error: 'Failed to analyze website content.' }, { status: 500 });
+    }
+
+    return NextResponse.json({ icp: result, source: 'gemini' });
+  } catch (err: any) {
+    console.error('analyze-website error:', err);
+    return NextResponse.json({ error: err.message || 'Failed to analyze website.' }, { status: 500 });
   }
 }

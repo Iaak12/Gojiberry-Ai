@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { generateLeadsForUser } from '@/lib/lead-generator';
+import { checkRateLimit } from '@/lib/ratelimit';
 
 export interface Lead {
   id?: any;
@@ -18,26 +19,6 @@ export interface Lead {
   color?: string;
   time?: string;
 }
-
-// Mock pool for development / missing API keys
-const LEAD_POOL = [
-  { name: 'Sarah Chen', role: 'VP of Sales', company: 'Meridian Analytics', email: 'sarah.chen@meridiananalytics.com', linkedin: 'linkedin.com/in/sarahchen', signal: 'Posted: "Scaling our SDR team from 3 to 12 reps this quarter — any tooling recommendations?"', score: 94, industry: 'Analytics SaaS' },
-  { name: 'Raj Patel', role: 'Head of Growth', company: 'Stackline', email: 'raj@stackline.io', linkedin: 'linkedin.com/in/rajpatelgrowth', signal: 'Competitor Outreach.io contract publicly confirmed to be expiring this quarter', score: 91, industry: 'E-commerce Tech' },
-  { name: 'Claire Dubois', role: 'Founder & CEO', company: 'Fieldo', email: 'claire@fieldo.com', linkedin: 'linkedin.com/in/clairedubois', signal: 'Just raised €2.4M Seed — job postings show hiring first sales team + outbound engine', score: 89, industry: 'Field Service SaaS' },
-  { name: 'Marcus Webb', role: 'Director of Revenue Ops', company: 'Novacore', email: 'marcus.webb@novacore.co', linkedin: 'linkedin.com/in/marcuswebb', signal: 'LinkedIn post: "Manual prospecting is stealing 3 hours from my team daily" — 87 reactions', score: 85, industry: 'HR Tech' },
-  { name: 'Priya Sharma', role: 'VP of Sales', company: 'Driftwave', email: 'priya.sharma@driftwave.io', linkedin: 'linkedin.com/in/priyasharma', signal: 'Tweeted: "We are hiring AEs aggressively — need a solid outbound engine ASAP"', score: 92, industry: 'MarTech' },
-];
-
-function shuffle<T>(arr: T[], seed: number): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(((seed * (i + 1) * 2654435761) >>> 0) / 0x100000000 * (i + 1));
-    [a[i], a[j % (i + 1)]] = [a[j % (i + 1)], a[i]];
-  }
-  return a;
-}
-
-import { checkRateLimit } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,30 +38,20 @@ export async function POST(req: NextRequest) {
     const geminiKey = (clientApiKey && clientApiKey !== 'MY_GEMINI_API_KEY') ? clientApiKey : process.env.GEMINI_API_KEY;
     const apifyToken = process.env.APIFY_API_TOKEN;
 
-    let leadsResponse;
-
-    // 1. If keys are missing, fallback to mock data
     if (!apifyToken || !geminiKey || geminiKey === 'MY_GEMINI_API_KEY') {
-      console.warn("API Keys missing. Falling back to mock data.");
-      await new Promise(r => setTimeout(r, 1000));
-      const seed = Math.floor(Date.now() / 1000);
-      leadsResponse = { leads: shuffle(LEAD_POOL, seed).slice(0, 5), source: 'mock' };
-    } else {
-      // 2. Use the generator service
-      leadsResponse = await generateLeadsForUser({
-        userEmail: session.user.email,
-        icp,
-        website,
-        geminiKey,
-        apifyToken
-      });
+      return NextResponse.json({ error: 'API Keys missing. Please configure Gemini and Apify tokens.' }, { status: 400 });
+    }
 
-      // 3. Fallback to mock data if Apify/Gemini failed or returned empty
-      if (!leadsResponse || !leadsResponse.leads || leadsResponse.leads.length === 0) {
-        console.warn("Real API returned empty leads. Falling back to mock data so UI doesn't break.");
-        const seed = Math.floor(Date.now() / 1000);
-        leadsResponse = { leads: shuffle(LEAD_POOL, seed).slice(0, 5), source: 'mock-fallback' };
-      }
+    const leadsResponse = await generateLeadsForUser({
+      userEmail: session.user.email,
+      icp,
+      website,
+      geminiKey,
+      apifyToken
+    });
+
+    if (!leadsResponse || !leadsResponse.leads || leadsResponse.leads.length === 0) {
+       return NextResponse.json({ error: 'No profiles found matching ICP. Try broadening your criteria.' }, { status: 404 });
     }
 
     return NextResponse.json(leadsResponse);

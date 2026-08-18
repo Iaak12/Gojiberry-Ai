@@ -82,24 +82,21 @@ Return ONLY valid JSON:
 }`;
 
     const response = await genai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-1.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const email: GeneratedEmail = JSON.parse(cleaned);
+    
+    if (!email || !email.subject || !email.body) {
+       return NextResponse.json({ error: 'Failed to generate email from Gemini API.' }, { status: 500 });
+    }
+
     return NextResponse.json({ email, source: 'gemini' });
-  } catch (err) {
+  } catch (err: any) {
     console.error('generate-email error:', err);
-    const fallback: GeneratedEmail = {
-      subject: `${prospect?.company ?? 'outbound'} — quick thought`,
-      body: `Hi ${prospect?.name?.split(' ')[0] ?? 'there'},
-
-${prospect?.signal ?? 'Saw some interesting signals from your company.'} That's exactly the kind of moment companies start thinking about smarter outbound.
-
-Gojiberry AI finds warm leads from 15+ intent signals and runs personalized outreach automatically — so your team spends time on conversations, not prospecting.
-
 Worth 15 minutes to see if it fits?
 
 ${fromName ?? 'The Team'}`,

@@ -1567,6 +1567,13 @@ function DashboardInner() {
         body: JSON.stringify({ icp: icpData, website, clientApiKey: currentKey }),
       });
       const data = await res.json();
+      
+      if (!res.ok || data.error) {
+        showToast(data.error || 'Failed to generate leads', 'error');
+        setLeadsLoading(false);
+        return;
+      }
+
       if (data.leads?.length) {
         setLeads(data.leads);
         // Save to DB
@@ -1575,7 +1582,9 @@ function DashboardInner() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, leads: data.leads }),
         });
-        if (data.source === 'gemini') showToast(`${data.leads.length} AI-generated leads loaded!`, 'success');
+        showToast(`Found ${data.leads.length} new leads!`, 'success');
+      } else {
+        showToast('No new leads found. Broaden your ICP.', 'info');
       }
     } catch (err) {
       console.error(err);

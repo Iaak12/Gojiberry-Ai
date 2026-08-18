@@ -21,12 +21,12 @@ Product being sold: ${website || 'a B2B SaaS tool'}
 
 Raw Profiles:
 ${JSON.stringify(rawProfiles.map((p: any) => ({
-  name: `${p.profile?.first_name} ${p.profile?.last_name}`,
-  headline: p.profile?.headline,
-  summary: p.profile?.summary,
-  occupation: p.profile?.occupation,
-  experiences: p.profile?.experiences?.slice(0, 2),
-  linkedin_url: `https://linkedin.com/in/${p.profile?.public_identifier}`
+  name: `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+  headline: p.headline,
+  summary: p.summary,
+  occupation: p.occupation,
+  experiences: p.experiences?.slice(0, 2),
+  linkedin_url: `https://linkedin.com/in/${p.public_identifier}`
 })), null, 2)}
 
 Task:
@@ -48,7 +48,7 @@ Return ONLY a valid JSON array of objects with exactly these fields:
 Do not include markdown or text blocks. Only the JSON array.`;
 
   const response = await genai.models.generateContent({
-    model: 'gemini-3.6-flash',
+    model: 'gemini-1.5-flash',
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
   });
 

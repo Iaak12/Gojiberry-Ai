@@ -19,7 +19,7 @@ export async function searchLinkedInProfiles(
     throw new Error('Apify API token is missing.');
   }
 
-  const actorId = 'apify/google-search-scraper';
+  const actorId = 'apify~google-search-scraper';
   
   const roles = targetRoles.map(r => `"${r}"`).join(' OR ');
   const industries = targetIndustries.map(i => `"${i}"`).join(' OR ');

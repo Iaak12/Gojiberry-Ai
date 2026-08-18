@@ -82,7 +82,7 @@ Return ONLY valid JSON:
 }`;
 
     const response = await genai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
     await connectToDatabase();
-    let user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() }).select('-password');
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -23,17 +23,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, ...updateData } = body;
+    const { email, password, ...updateData } = body;
     
     if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
+
+    const normalizedEmail = email.toLowerCase();
 
     await connectToDatabase();
     
     const user = await User.findOneAndUpdate(
-      { email },
+      { email: normalizedEmail },
       { $set: updateData },
       { new: true, upsert: true }
-    );
+    ).select('-password');
 
     return NextResponse.json({ user });
   } catch (error) {

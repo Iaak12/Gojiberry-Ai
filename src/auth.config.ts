@@ -1,3 +1,4 @@
+import type { NextAuthConfig } from "next-auth"
 import Google from "next-auth/providers/google"
 import Resend from "next-auth/providers/resend"
 
@@ -16,11 +17,22 @@ export default {
       },
     }),
     Resend({
-      from: process.env.EMAIL_FROM || "no-reply@gojiberry.ai",
+      from: process.env.EMAIL_FROM || "noreply@gojiberry.ai",
       apiKey: process.env.RESEND_API_KEY,
     }),
   ],
   pages: {
     signIn: "/login",
-  }
-}
+  },
+  callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user;
+      const isDashboardRoute = nextUrl.pathname.startsWith('/dashboard');
+      if (isDashboardRoute) {
+        if (isLoggedIn) return true;
+        return false; // Redirect to signIn page
+      }
+      return true;
+    },
+  },
+} satisfies NextAuthConfig;

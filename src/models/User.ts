@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   name: { type: String, required: true },
+  password: { type: String },
+  role: { type: String, enum: ['user', 'superadmin', 'admin'], default: 'user' },
   website: { type: String },
   geminiKey: { type: String, default: '' },
   dailyLimit: { type: String, default: '50' },

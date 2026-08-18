@@ -79,18 +79,37 @@ export default function SignupForm() {
     setLoading(true);
 
     try {
-      await fetch('/api/user', {
+      const regRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, website, icp }),
+        body: JSON.stringify({ email, name, password, website, icp }),
       });
-    } catch (err) {
+
+      const regData = await regRes.json();
+      if (!regRes.ok || regData.error) {
+        setError(regData.error || 'Failed to create account. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Auto sign-in with credentials
+      const { signIn } = await import('next-auth/react');
+      await signIn('credentials', {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
+
+      // Save session for dashboard
+      localStorage.setItem('gojiberry_session', email.trim().toLowerCase());
+    } catch (err: any) {
       console.error(err);
+      setError(err?.message || 'An error occurred during signup.');
+      setLoading(false);
+      return;
     }
 
     setLoading(false);
-    // Save session for dashboard
-    localStorage.setItem('gojiberry_session', email);
     setStep(2);
     
     // Simulate finding leads in background
@@ -294,7 +313,11 @@ export default function SignupForm() {
                   {/* Google */}
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#FAFAFA] transition-colors text-sm font-semibold text-[#0F172A] shadow-sm mb-5"
+                    onClick={async () => {
+                      const { signIn } = await import('next-auth/react');
+                      signIn('google', { redirectTo: '/dashboard' });
+                    }}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#FAFAFA] transition-colors text-sm font-semibold text-[#0F172A] shadow-sm mb-5 cursor-pointer"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

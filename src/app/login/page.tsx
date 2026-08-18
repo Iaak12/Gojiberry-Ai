@@ -1,20 +1,63 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
-import { ArrowRight, Mail } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowRight, Mail, Lock, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [authMode, setAuthMode] = useState<'password' | 'magic'>('password');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccess(false);
+    
+    if (!email || !password) {
+      setError('Please enter both your email and password.');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const { signIn } = await import('next-auth/react');
+      const res = await signIn('credentials', { 
+        email: email.trim().toLowerCase(), 
+        password, 
+        redirect: false,
+      });
+      
+      if (res?.error) {
+        setError('Invalid email or password. Please check your credentials.');
+        setLoading(false);
+        return;
+      }
+      
+      // Save session identifier for dashboard sync
+      localStorage.setItem('gojiberry_session', email.trim().toLowerCase());
+      
+      // Navigate to dashboard
+      router.push('/dashboard');
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred during sign in. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleMagicSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setMagicSent(false);
     
     if (!email) {
       setError('Please enter your email.');
@@ -26,21 +69,21 @@ export default function LoginPage() {
     try {
       const { signIn } = await import('next-auth/react');
       const res = await signIn('resend', { 
-        email, 
+        email: email.trim().toLowerCase(), 
         redirect: false,
       });
       
       if (res?.error) {
-        setError('An error occurred. Please try again.');
+        setError('Could not send magic link. Please use password login or try again.');
         setLoading(false);
         return;
       }
       
-      setSuccess(true);
+      setMagicSent(true);
       setLoading(false);
     } catch (err) {
       console.error(err);
-      setError('An error occurred during sign in.');
+      setError('An error occurred while sending the magic link.');
       setLoading(false);
     }
   };
@@ -83,7 +126,7 @@ export default function LoginPage() {
           <span className="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-[#FF5A36]" />
 
           <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 shadow-xl">
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h1 className="font-heading text-2xl font-extrabold text-[#0F172A]">Welcome back</h1>
               <p className="mt-1.5 text-sm text-[#475569]">Sign in to your Gojiberry account</p>
             </div>
@@ -95,7 +138,7 @@ export default function LoginPage() {
                 const { signIn } = await import('next-auth/react');
                 signIn('google', { redirectTo: '/dashboard' });
               }}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#FAFAFA] transition-colors text-sm font-semibold text-[#0F172A] shadow-sm mb-6"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[#E2E8F0] rounded-xl bg-white hover:bg-[#FAFAFA] transition-colors text-sm font-semibold text-[#0F172A] shadow-sm mb-5"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -106,30 +149,44 @@ export default function LoginPage() {
               Continue with Google
             </button>
 
-            <div className="relative flex items-center gap-3 mb-6">
+            <div className="relative flex items-center gap-3 mb-5">
               <div className="flex-1 h-px bg-[#E2E8F0]" />
-              <span className="text-xs text-[#94A3B8] font-medium">or login with email</span>
+              <span className="text-xs text-[#94A3B8] font-medium">or continue with email</span>
               <div className="flex-1 h-px bg-[#E2E8F0]" />
             </div>
 
-            {success ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl text-center text-sm mb-4"
+            {/* Auth Mode Switcher */}
+            <div className="flex bg-[#F1F5F9] p-1 rounded-xl mb-5">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('password'); setError(''); }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  authMode === 'password'
+                    ? 'bg-white text-[#0F172A] shadow-sm'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
               >
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Mail className="w-5 h-5 text-green-600" />
-                </div>
-                <p className="font-semibold mb-1">Check your email</p>
-                <p>A magic sign-in link has been sent to <strong>{email}</strong>.</p>
-              </motion.div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+                Password
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('magic'); setError(''); }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  authMode === 'magic'
+                    ? 'bg-white text-[#0F172A] shadow-sm'
+                    : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+              >
+                Magic Link
+              </button>
+            </div>
+
+            {authMode === 'password' ? (
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 {/* Email */}
                 <div>
                   <label className="block text-xs font-semibold text-[#0F172A] mb-1.5" htmlFor="login-email">
-                    Work Email
+                    Work Email / Superadmin
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
@@ -145,22 +202,57 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Error */}
+                {/* Password */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-[#0F172A]" htmlFor="login-password">
+                      Password
+                    </label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-[#FF5A36] hover:underline font-medium"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                    <input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pl-10 pr-11 py-3 border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#FF5A36] focus:ring-2 focus:ring-[#FF5A36]/15 bg-white transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#475569] transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error message */}
                 {error && (
-                  <motion.p
+                  <motion.div
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-xs text-red-500 font-medium"
+                    className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium"
                   >
                     {error}
-                  </motion.p>
+                  </motion.div>
                 )}
 
-                {/* Submit */}
+                {/* Submit button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 bg-[#111827] hover:bg-black disabled:opacity-60 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2"
+                  className="w-full py-3.5 bg-[#111827] hover:bg-black disabled:opacity-60 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -168,16 +260,83 @@ export default function LoginPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      Sending link...
+                      Signing in...
                     </span>
                   ) : (
                     <>
-                      Send magic link
+                      Sign In
                       <ArrowRight className="w-4 h-4 text-[#FF5A36]" />
                     </>
                   )}
                 </button>
               </form>
+            ) : (
+              <div>
+                {magicSent ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-xl text-center text-sm mb-4"
+                  >
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <Mail className="w-5 h-5 text-green-600" />
+                    </div>
+                    <p className="font-semibold mb-1">Check your email</p>
+                    <p>A magic sign-in link has been sent to <strong>{email}</strong>.</p>
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleMagicSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0F172A] mb-1.5" htmlFor="magic-email">
+                        Work Email
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+                        <input
+                          id="magic-email"
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@company.com"
+                          className="w-full pl-10 pr-4 py-3 border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:border-[#FF5A36] focus:ring-2 focus:ring-[#FF5A36]/15 bg-white transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium"
+                      >
+                        {error}
+                      </motion.div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3.5 bg-[#111827] hover:bg-black disabled:opacity-60 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
+                    >
+                      {loading ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          Sending link...
+                        </span>
+                      ) : (
+                        <>
+                          Send magic link
+                          <ArrowRight className="w-4 h-4 text-[#FF5A36]" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
 
             <p className="text-center text-xs text-[#94A3B8] mt-6">
@@ -190,11 +349,11 @@ export default function LoginPage() {
 
           {/* Bottom trust indicators */}
           <div className="flex items-center justify-center gap-4 mt-6 text-xs text-[#94A3B8]">
-            <span>🔒 SOC 2</span>
+            <span className="flex items-center gap-1">🔒 SOC 2</span>
             <span>•</span>
             <span>🇪🇺 GDPR Compliant</span>
             <span>•</span>
-            <span>🏅 Y Combinator P26</span>
+            <span className="flex items-center gap-1">👑 Superadmin Supported</span>
           </div>
         </motion.div>
       </div>

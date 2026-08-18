@@ -1710,7 +1710,19 @@ function DashboardInner() {
               <div className="text-xs font-bold text-[#0F172A] truncate">{userInfo?.name ?? 'Demo User'}</div>
               <div className="text-[11px] text-[#94A3B8] truncate">Pro Plan</div>
             </div>
-            <Link href="/" className="text-[#94A3B8] hover:text-[#FF5A36] transition-colors"><LogOut className="w-4 h-4" /></Link>
+            <button
+              type="button"
+              title="Sign out"
+              onClick={async () => {
+                localStorage.removeItem('gojiberry_session');
+                localStorage.removeItem('gojiberry_leads');
+                const { signOut } = await import('next-auth/react');
+                await signOut({ redirectTo: '/login' });
+              }}
+              className="text-[#94A3B8] hover:text-[#FF5A36] transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>

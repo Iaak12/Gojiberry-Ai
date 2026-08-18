@@ -3,31 +3,41 @@ import authConfig from "@/auth.config"
 
 const { auth } = NextAuth(authConfig)
 
+const PUBLIC_API_PREFIXES = [
+  '/api/auth',
+  '/api/analyze-website',
+  '/api/user',
+  '/api/inngest',
+  '/api/webhooks',
+];
+
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
-  const isDashboardRoute = req.nextUrl.pathname.startsWith('/dashboard');
-  const isApiAuthRoute = req.nextUrl.pathname.startsWith('/api/auth');
-  const isApiRoute = req.nextUrl.pathname.startsWith('/api');
-  const isLoginRoute = req.nextUrl.pathname === '/login';
+  const { pathname } = req.nextUrl;
 
-  if (isApiAuthRoute) {
-    return;
+  const isDashboardRoute = pathname.startsWith('/dashboard');
+  const isLoginRoute = pathname === '/login';
+  const isSignupRoute = pathname === '/signup';
+  const isApiRoute = pathname.startsWith('/api');
+
+  // If already logged in and navigating to login/signup, redirect to dashboard
+  if ((isLoginRoute || isSignupRoute) && isLoggedIn) {
+    return Response.redirect(new URL('/dashboard', req.nextUrl));
   }
 
-  if (isLoginRoute) {
-    if (isLoggedIn) {
-      return Response.redirect(new URL('/dashboard', req.nextUrl));
-    }
-    return;
-  }
-
+  // Dashboard requires login
   if (isDashboardRoute && !isLoggedIn) {
-    return Response.redirect(new URL('/login', req.nextUrl));
+    const loginUrl = new URL('/login', req.nextUrl);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return Response.redirect(loginUrl);
   }
-  
-  if (isApiRoute && !isLoggedIn && !req.nextUrl.pathname.startsWith('/api/inngest')) {
-    // Return unauthorized for protected API routes (allowing public routes like inngest callback)
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Check API route protection
+  if (isApiRoute && !isLoggedIn) {
+    const isPublicApi = PUBLIC_API_PREFIXES.some(prefix => pathname.startsWith(prefix));
+    if (!isPublicApi) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   return;

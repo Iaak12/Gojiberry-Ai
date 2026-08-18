@@ -1329,27 +1329,55 @@ function DashboardMainView({
 
 function SuperadminDashboardView() {
   const [stats, setStats] = useState<any>(null);
+  const [usersList, setUsersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchStats() {
-      const email = localStorage.getItem('gojiberry_session') || '';
-      try {
-        const res = await fetch(`/api/superadmin?email=${email}`);
-        if (res.ok) {
-          setStats(await res.json());
-        }
-      } catch (e) {}
-      setLoading(false);
-    }
-    fetchStats();
+    fetchData();
   }, []);
+
+  async function fetchData() {
+    setLoading(true);
+    const email = localStorage.getItem('gojiberry_session') || '';
+    try {
+      const [resStats, resUsers] = await Promise.all([
+        fetch(`/api/superadmin?email=${email}`),
+        fetch(`/api/superadmin/users?email=${email}`)
+      ]);
+      if (resStats.ok) setStats(await resStats.json());
+      if (resUsers.ok) {
+        const uData = await resUsers.json();
+        setUsersList(uData.users || []);
+      }
+    } catch (e) {}
+    setLoading(false);
+  }
+
+  const handleBan = async (userId: string, currentStatus: string) => {
+    const email = localStorage.getItem('gojiberry_session') || '';
+    const newStatus = currentStatus === 'active' ? 'banned' : 'active';
+    await fetch(`/api/superadmin/users?email=${email}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, status: newStatus })
+    });
+    fetchData();
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this user?')) return;
+    const email = localStorage.getItem('gojiberry_session') || '';
+    await fetch(`/api/superadmin/users?email=${email}&userId=${userId}`, {
+      method: 'DELETE'
+    });
+    fetchData();
+  };
 
   return (
     <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden flex flex-col min-h-[500px]">
       <div className="px-6 py-4 border-b border-[#F1F5F9] bg-[#FAFAFA]">
         <h3 className="font-bold text-[#0F172A]">Superadmin Dashboard</h3>
-        <p className="text-xs text-[#64748B]">System-wide metrics and configuration</p>
+        <p className="text-xs text-[#64748B]">System-wide metrics and user management</p>
       </div>
       {loading ? (
         <div className="p-10 flex justify-center text-sm text-[#94A3B8]">Loading stats...</div>
@@ -1368,29 +1396,65 @@ function SuperadminDashboardView() {
               <div className="text-xs text-[#64748B] font-semibold uppercase tracking-wider mb-1">System Health</div>
               <div className="text-sm font-bold text-[#22C55E]">All Systems Operational</div>
               <div className="text-xs text-[#64748B] mt-1">MongoDB: {stats.systemStatus?.mongodb}</div>
-              <div className="text-xs text-[#64748B]">Gemini: {stats.systemStatus?.geminiKey}</div>
             </div>
           </div>
-          <h4 className="font-bold text-sm text-[#0F172A] mb-3">Recent Signups</h4>
-          <div className="border border-[#E2E8F0] rounded-lg overflow-hidden">
-            <table className="w-full text-left border-collapse">
+          
+          <h4 className="font-bold text-sm text-[#0F172A] mb-3">User Management</h4>
+          <div className="border border-[#E2E8F0] rounded-lg overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase">
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Joined</th>
+                  <th className="px-4 py-3">User</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">API Keys</th>
+                  <th className="px-4 py-3">Billing</th>
+                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9]">
-                {stats.recentUsers?.map((u: any, i: number) => (
-                  <tr key={i} className="hover:bg-[#FAFAFA]">
-                    <td className="px-4 py-3 text-xs font-bold text-[#0F172A]">{u.name}</td>
-                    <td className="px-4 py-3 text-xs text-[#64748B]">{u.email}</td>
-                    <td className="px-4 py-3 text-xs">
-                      <span className={`px-2 py-0.5 rounded-full font-semibold ${u.role === 'superadmin' ? 'bg-[#FFF2ED] text-[#FF5A36]' : 'bg-[#F1F5F9] text-[#64748B]'}`}>{u.role}</span>
+                {usersList.map((u: any, i: number) => (
+                  <tr key={u._id || i} className="hover:bg-[#FAFAFA]">
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-bold text-[#0F172A]">{u.name}</div>
+                      <div className="text-[11px] text-[#64748B]">{u.email}</div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#94A3B8]">{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className={`px-2 py-0.5 rounded-full font-semibold ${u.status === 'banned' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                        {u.status || 'active'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[11px] text-[#475569]">
+                      <div className="flex gap-2 mb-1">
+                        <span className="font-bold">Gemini:</span>
+                        <span className={u.geminiKey ? 'text-green-600' : 'text-red-500'}>
+                          {u.geminiKey ? 'Custom Key' : 'Default'}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="font-bold">Apify:</span>
+                        <span className={u.apifyToken ? 'text-green-600' : 'text-red-500'}>
+                          {u.apifyToken ? 'Custom Key' : 'Default'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[11px]">
+                      <div className="font-bold text-[#0F172A] mb-1">{u.subscriptionTier} Tier</div>
+                      <div className="text-[#64748B]">Paid: ${u.stripeSpent || 0}</div>
+                    </td>
+                    <td className="px-4 py-3 text-xs flex gap-2">
+                      <button 
+                        onClick={() => handleBan(u._id, u.status || 'active')}
+                        className={`px-3 py-1.5 rounded-lg font-bold text-white transition-colors ${u.status === 'banned' ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600'}`}
+                      >
+                        {u.status === 'banned' ? 'Unban' : 'Ban'}
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(u._id)}
+                        className="px-3 py-1.5 rounded-lg font-bold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

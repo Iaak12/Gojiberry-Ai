@@ -7,6 +7,8 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'superadmin', 'admin'], default: 'user' },
   website: { type: String },
   geminiKey: { type: String, default: '' },
+  apifyToken: { type: String, default: '' },
+  status: { type: String, enum: ['active', 'banned'], default: 'active' },
   dailyLimit: { type: String, default: '50' },
   warmup: { type: Boolean, default: true },
   excludeDomains: { type: String, default: '' },
@@ -25,6 +27,9 @@ const UserSchema = new mongoose.Schema({
     autoEnrichEmail: { type: Boolean, default: false },
     autoEnrichPhone: { type: Boolean, default: false },
     autoGenerateAiMessages: { type: Boolean, default: false },
+    stripeCustomerId: { type: String, default: '' },
+    stripeSubscriptionId: { type: String, default: '' },
+    stripeSubscriptionStatus: { type: String, default: '' },
   },
 }, { timestamps: true });
 

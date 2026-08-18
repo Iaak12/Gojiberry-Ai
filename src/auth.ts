@@ -8,6 +8,7 @@ import { verifyPassword } from "./lib/password"
 import authConfig from "./auth.config"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   adapter: MongoDBAdapter(clientPromise),
   ...authConfig,
   providers: [

@@ -42,7 +42,7 @@ RULES:
 Return ONLY the reply text. No JSON, no subject line, no labels.`;
 
     const response = await genai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 

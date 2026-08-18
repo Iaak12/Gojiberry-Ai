@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const user = await User.findOneAndUpdate(
       { email: normalizedEmail },
       { $set: updateData },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     ).select('-password');
 
     return NextResponse.json({ user });

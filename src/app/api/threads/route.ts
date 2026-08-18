@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const thread = await Thread.findOneAndUpdate(
       { userEmail: email, leadId: new mongoose.Types.ObjectId(leadId) },
       { $push: { messages: message } },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     return NextResponse.json({ thread });

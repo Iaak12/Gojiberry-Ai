@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest) {
     const lead = await Lead.findByIdAndUpdate(
       leadId,
       { $set: { status } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });

@@ -73,7 +73,7 @@ Return ONLY valid JSON (no markdown, no explanation) in this exact shape:
 }`;
 
     const response = await genai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 

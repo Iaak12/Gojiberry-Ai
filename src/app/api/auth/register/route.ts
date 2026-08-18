@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
           ...(icp ? { icp } : {}),
         }
       },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
 
     return NextResponse.json({

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
     
-    const task = await ExtensionTask.findByIdAndUpdate(taskId, { status }, { new: true });
+    const task = await ExtensionTask.findByIdAndUpdate(taskId, { status }, { returnDocument: 'after' });
     
     return NextResponse.json({ success: true, task }, { headers: corsHeaders() });
   } catch (error: any) {

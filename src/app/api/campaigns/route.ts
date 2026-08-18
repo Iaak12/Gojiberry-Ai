@@ -46,11 +46,12 @@ export async function POST(req: NextRequest) {
 
 import { sendEmail } from '@/lib/resend';
 import Lead from '@/models/Lead';
+import { inngest } from '@/inngest/client';
 
 export async function PUT(req: NextRequest) {
   try {
-    const { campaignId, email } = await req.json();
-    if (!campaignId || !email) return NextResponse.json({ error: 'campaignId and email required' }, { status: 400 });
+    const { campaignId, email, leadId } = await req.json();
+    if (!campaignId || !email || !leadId) return NextResponse.json({ error: 'campaignId, email, and leadId required' }, { status: 400 });
 
     await connectToDatabase();
     const user = await User.findOne({ email });
@@ -59,31 +60,23 @@ export async function PUT(req: NextRequest) {
     const campaign = await Campaign.findOne({ _id: campaignId, userId: user._id });
     if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
 
-    // Fetch leads for the user that match campaign criteria
-    const leads = await Lead.find({ userId: user._id, status: 'New' });
+    const lead = await Lead.findOne({ _id: leadId });
+    if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
 
-    let sentCount = 0;
-    for (const lead of leads) {
-      // Mock generating email content
-      const emailContent = `<p>Hi ${lead.name},</p><p>We saw your profile at ${lead.linkedInUrl} and we think you'd be a great fit for...</p>`;
-      
-      const res = await sendEmail({
-        to: user.email, // In reality, this would be lead.email, but we use user.email to avoid spamming real people during dev
-        subject: `Reaching out to ${lead.name}`,
-        html: emailContent,
-      });
+    // Send event to Inngest
+    await inngest.send({
+      name: "campaign/step.execute",
+      data: {
+        campaignId: campaign._id.toString(),
+        leadId: lead._id.toString(),
+        stepIndex: 0
+      },
+    });
 
-      if (!res.error) {
-        sentCount++;
-        lead.status = 'Contacted';
-        await lead.save();
-      }
-    }
-
-    campaign.status = 'Active';
+    campaign.status = 'active';
     await campaign.save();
 
-    return NextResponse.json({ success: true, sentCount }, { status: 200 });
+    return NextResponse.json({ success: true, message: 'Added to sequence' }, { status: 200 });
   } catch (error) {
     console.error('Error executing campaign:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

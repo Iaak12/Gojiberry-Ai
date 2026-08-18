@@ -304,7 +304,7 @@ function LinkedInModal({ modal, onClose }: { modal: LinkedInModal; onClose: () =
 // ─── PROSPECTS VIEW ───────────────────────────────────────────────────────────
 
 function ProspectsView({
-  leads, leadsLoading, onDraftEmail, onRefresh, onLinkedIn, onBookDemo,
+  leads, leadsLoading, onDraftEmail, onRefresh, onLinkedIn, onBookDemo, onAddToSequence,
 }: {
   leads: Lead[];
   leadsLoading: boolean;
@@ -312,6 +312,7 @@ function ProspectsView({
   onRefresh: () => void;
   onLinkedIn: (p: Lead) => void;
   onBookDemo: (p: Lead) => void;
+  onAddToSequence?: (p: Lead) => void;
 }) {
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
@@ -396,6 +397,11 @@ function ProspectsView({
                 </div>
 
                 <div className="space-y-2">
+                  <button
+                    onClick={() => { onAddToSequence?.(selectedProspect); setSelectedProspect(null); }}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#10B981] hover:bg-[#059669] text-white text-sm font-bold rounded-xl transition-colors mb-2">
+                    <Play className="w-4 h-4" /> Add to Automated Sequence
+                  </button>
                   <button
                     onClick={() => { onDraftEmail(selectedProspect); setSelectedProspect(null); }}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF5A36] hover:bg-[#E04826] text-white text-sm font-bold rounded-xl transition-colors">
@@ -901,16 +907,42 @@ function PlaybooksView() {
 
 function OutreachView({ leads }: { leads: Lead[] }) {
   const { showToast } = useToast();
-  const [sequences, setSequences] = useState<OutreachSeq[]>(() => getStore('gojiberry_sequences', OUTREACH_DEFAULTS));
+  const [sequences, setSequences] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggleSeq = (id: number) => {
-    setSequences(prev => {
-      const seq = prev.find(s => s.id === id)!;
-      const updated = prev.map(s => s.id === id ? { ...s, active: !s.active } : s);
-      setStore('gojiberry_sequences', updated);
-      showToast(`${seq.name} ${seq.active ? 'paused' : 'resumed'}`, seq.active ? 'info' : 'success');
-      return updated;
-    });
+  const fetchCampaigns = useCallback(async () => {
+    const email = localStorage.getItem('gojiberry_session');
+    if (!email) return;
+    try {
+      const res = await fetch(`/api/campaigns?email=${email}`);
+      const data = await res.json();
+      if (data.campaigns) {
+        setSequences(data.campaigns.map((c: any) => ({
+          id: c._id,
+          name: c.name,
+          active: c.status === 'active' || c.status === 'Active',
+          step: c.sequence?.[0]?.template ? 'Email Step Active' : 'Waiting for prospects',
+          prospects: leads.length, // Placeholder logic, could filter leads by campaignId
+          opens: '0%',
+          replies: '0%',
+          color: '#10B981'
+        })));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [leads.length]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
+
+  const toggleSeq = async (id: string, currentActive: boolean) => {
+    showToast(`Toggling sequence...`, 'info');
+    // In a real app we'd call an API to toggle status, for now just update UI
+    setSequences(prev => prev.map(s => s.id === id ? { ...s, active: !currentActive } : s));
   };
 
   return (
@@ -919,37 +951,43 @@ function OutreachView({ leads }: { leads: Lead[] }) {
         <h3 className="font-bold text-[#0F172A]">Active Outreach Sequences</h3>
         <span className="text-xs text-[#64748B]">{leads.length} prospects in pipeline</span>
       </div>
-      <div className="space-y-4">
-        {sequences.map((seq, i) => (
-          <motion.div key={seq.name} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-            className={`border rounded-xl p-5 transition-colors ${seq.active ? 'border-[#E2E8F0] hover:border-[#FF5A36]/30' : 'border-[#F1F5F9] bg-[#FAFAFA] opacity-75'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${seq.active ? 'animate-pulse' : ''}`} style={{ backgroundColor: seq.active ? seq.color : '#CBD5E1' }} />
-                <span className="font-bold text-sm text-[#0F172A]">{seq.name}</span>
-                {seq.active && <span className="text-[11px] font-semibold text-[#22C55E]">● Running</span>}
-                {!seq.active && <span className="text-[11px] font-semibold text-[#94A3B8]">● Paused</span>}
+      {loading ? (
+        <div className="py-8 text-center text-sm text-[#64748B]">Loading sequences...</div>
+      ) : sequences.length === 0 ? (
+        <div className="py-8 text-center text-sm text-[#64748B]">No outreach sequences active. Click 'Add to Sequence' on a prospect to start!</div>
+      ) : (
+        <div className="space-y-4">
+          {sequences.map((seq, i) => (
+            <motion.div key={seq.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+              className={`border rounded-xl p-5 transition-colors ${seq.active ? 'border-[#E2E8F0] hover:border-[#FF5A36]/30' : 'border-[#F1F5F9] bg-[#FAFAFA] opacity-75'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${seq.active ? 'animate-pulse' : ''}`} style={{ backgroundColor: seq.active ? seq.color : '#CBD5E1' }} />
+                  <span className="font-bold text-sm text-[#0F172A]">{seq.name}</span>
+                  {seq.active && <span className="text-[11px] font-semibold text-[#22C55E]">● Running</span>}
+                  {!seq.active && <span className="text-[11px] font-semibold text-[#94A3B8]">● Paused</span>}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => toggleSeq(seq.id, seq.active)}
+                    className={`p-1.5 border rounded-lg transition-colors ${seq.active ? 'border-[#E2E8F0] text-[#475569] hover:text-[#FF5A36] hover:border-[#FF5A36]' : 'border-[#E2E8F0] text-[#475569] hover:text-[#22C55E] hover:border-[#22C55E]'}`}>
+                    {seq.active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  </button>
+                  <button onClick={() => showToast(`${seq.name} settings opened`, 'info')}
+                    className="p-1.5 border border-[#E2E8F0] rounded-lg text-[#475569] hover:text-[#FF5A36] hover:border-[#FF5A36] transition-colors">
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => toggleSeq(seq.id)}
-                  className={`p-1.5 border rounded-lg transition-colors ${seq.active ? 'border-[#E2E8F0] text-[#475569] hover:text-[#FF5A36] hover:border-[#FF5A36]' : 'border-[#E2E8F0] text-[#475569] hover:text-[#22C55E] hover:border-[#22C55E]'}`}>
-                  {seq.active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                </button>
-                <button onClick={() => showToast(`${seq.name} settings opened`, 'info')}
-                  className="p-1.5 border border-[#E2E8F0] rounded-lg text-[#475569] hover:text-[#FF5A36] hover:border-[#FF5A36] transition-colors">
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
+              <p className="text-xs text-[#64748B] mb-3">{seq.step}</p>
+              <div className="flex gap-6 text-xs">
+                <div><span className="font-bold text-[#0F172A]">{seq.prospects}</span> <span className="text-[#64748B]">prospects</span></div>
+                <div><span className="font-bold text-[#0F172A]">{seq.opens}</span> <span className="text-[#64748B]">open rate</span></div>
+                <div><span className="font-bold text-[#0F172A]">{seq.replies}</span> <span className="text-[#64748B]">reply rate</span></div>
               </div>
-            </div>
-            <p className="text-xs text-[#64748B] mb-3">{seq.step}</p>
-            <div className="flex gap-6 text-xs">
-              <div><span className="font-bold text-[#0F172A]">{seq.prospects}</span> <span className="text-[#64748B]">prospects</span></div>
-              <div><span className="font-bold text-[#0F172A]">{seq.opens}</span> <span className="text-[#64748B]">open rate</span></div>
-              <div><span className="font-bold text-[#0F172A]">{seq.replies}</span> <span className="text-[#64748B]">reply rate</span></div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1956,6 +1994,37 @@ function DashboardInner() {
                   onRefresh={handleRefreshLeads}
                   onLinkedIn={handleLinkedIn}
                   onBookDemo={handleBookDemo}
+                  onAddToSequence={async (lead) => {
+                    const email = localStorage.getItem('gojiberry_session');
+                    if (!email) return;
+                    showToast('Adding to sequence...', 'info');
+                    try {
+                      // 1. Fetch campaigns to get a default campaign id or create one
+                      let res = await fetch(`/api/campaigns?email=${email}`);
+                      let data = await res.json();
+                      let campaignId = data.campaigns?.[0]?._id;
+                      if (!campaignId) {
+                        res = await fetch('/api/campaigns', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email, name: 'Cold Email Sequence', listId: 'default' })
+                        });
+                        data = await res.json();
+                        campaignId = data.campaign?._id;
+                      }
+                      // 2. Add lead to sequence
+                      if (campaignId) {
+                        await fetch('/api/campaigns', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ campaignId, email, leadId: lead.id })
+                        });
+                        showToast('Added to Outreach Sequence!', 'success');
+                      }
+                    } catch (e) {
+                      showToast('Failed to add to sequence', 'error');
+                    }
+                  }}
                 />
               )}
               {activeNav === 'inbox' && (

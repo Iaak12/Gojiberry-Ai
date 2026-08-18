@@ -91,15 +91,18 @@ export const processCampaignQueue = inngest.createFunction(
       const campaign = await Campaign.findById(campaignId);
       const user = await User.findById(campaign.userId);
 
-      // Check if email sending is configured
       if (campaignData.stepType === 'email') {
         const compiledMessage = parseEmailTemplate(campaignData.template, lead);
-        const subject = `Following up with ${lead.company || 'your team'}`; 
+        const subject = `Following up with ${lead.company || 'your team'}`;
+        const isProd = process.env.NODE_ENV === 'production';
+        const targetEmail = isProd ? lead.email : user.email; // SAFE MODE: Send to user if not in production
+
+        const trackingPixel = `<img src="${process.env.APP_URL || 'http://localhost:3000'}/api/track/open?leadId=${leadId}&campaignId=${campaignId}" width="1" height="1" style="display:none;" />`;
         
         await sendEmail({
-          to: lead.email,
+          to: targetEmail,
           subject: subject,
-          html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${compiledMessage}</div>`
+          html: `<div style="font-family: sans-serif; white-space: pre-wrap;">${compiledMessage}</div>${trackingPixel}`
         });
       } else {
         // LinkedIn steps handled differently or logged for Chrome extension

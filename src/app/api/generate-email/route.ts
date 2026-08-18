@@ -97,10 +97,6 @@ Return ONLY valid JSON:
     return NextResponse.json({ email, source: 'gemini' });
   } catch (err: any) {
     console.error('generate-email error:', err);
-Worth 15 minutes to see if it fits?
-
-${fromName ?? 'The Team'}`,
-    };
-    return NextResponse.json({ email: fallback, source: 'mock' });
+    return NextResponse.json({ error: err.message || 'Failed to generate email' }, { status: 500 });
   }
 }

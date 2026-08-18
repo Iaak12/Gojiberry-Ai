@@ -1576,12 +1576,6 @@ function DashboardInner() {
 
       if (data.leads?.length) {
         setLeads(data.leads);
-        // Save to DB
-        await fetch('/api/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, leads: data.leads }),
-        });
         showToast(`Found ${data.leads.length} new leads!`, 'success');
       } else {
         showToast('No new leads found. Broaden your ICP.', 'info');

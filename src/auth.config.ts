@@ -16,10 +16,6 @@ export default {
         },
       },
     }),
-    Resend({
-      from: process.env.EMAIL_FROM || "noreply@gojiberry.ai",
-      apiKey: process.env.RESEND_API_KEY,
-    }),
   ],
   pages: {
     signIn: "/login",

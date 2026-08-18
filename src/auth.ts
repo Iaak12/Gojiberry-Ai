@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import Resend from "next-auth/providers/resend"
 import { MongoDBAdapter } from "@auth/mongodb-adapter"
 import clientPromise from "./lib/db"
 import connectToDatabase from "./lib/mongodb"
@@ -13,6 +14,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers: [
     ...authConfig.providers,
+    Resend({
+      from: process.env.EMAIL_FROM || "noreply@gojiberry.ai",
+      apiKey: process.env.RESEND_API_KEY,
+    }),
     Credentials({
       name: "Credentials",
       credentials: {

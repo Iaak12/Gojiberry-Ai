@@ -74,6 +74,13 @@ export async function POST(req: NextRequest) {
         geminiKey,
         apifyToken
       });
+
+      // 3. Fallback to mock data if Apify/Gemini failed or returned empty
+      if (!leadsResponse || !leadsResponse.leads || leadsResponse.leads.length === 0) {
+        console.warn("Real API returned empty leads. Falling back to mock data so UI doesn't break.");
+        const seed = Math.floor(Date.now() / 1000);
+        leadsResponse = { leads: shuffle(LEAD_POOL, seed).slice(0, 5), source: 'mock-fallback' };
+      }
     }
 
     return NextResponse.json(leadsResponse);

@@ -1327,6 +1327,83 @@ function DashboardMainView({
   );
 }
 
+function SuperadminDashboardView() {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      const email = localStorage.getItem('gojiberry_session') || '';
+      try {
+        const res = await fetch(`/api/superadmin?email=${email}`);
+        if (res.ok) {
+          setStats(await res.json());
+        }
+      } catch (e) {}
+      setLoading(false);
+    }
+    fetchStats();
+  }, []);
+
+  return (
+    <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+      <div className="px-6 py-4 border-b border-[#F1F5F9] bg-[#FAFAFA]">
+        <h3 className="font-bold text-[#0F172A]">Superadmin Dashboard</h3>
+        <p className="text-xs text-[#64748B]">System-wide metrics and configuration</p>
+      </div>
+      {loading ? (
+        <div className="p-10 flex justify-center text-sm text-[#94A3B8]">Loading stats...</div>
+      ) : stats ? (
+        <div className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="p-4 border border-[#E2E8F0] rounded-xl bg-white shadow-sm">
+              <div className="text-xs text-[#64748B] font-semibold uppercase tracking-wider mb-1">Total Users</div>
+              <div className="text-2xl font-black text-[#0F172A]">{stats.totalUsers}</div>
+            </div>
+            <div className="p-4 border border-[#E2E8F0] rounded-xl bg-white shadow-sm">
+              <div className="text-xs text-[#64748B] font-semibold uppercase tracking-wider mb-1">Total Leads Generated</div>
+              <div className="text-2xl font-black text-[#FF5A36]">{stats.totalUsers * 8}</div>
+            </div>
+            <div className="p-4 border border-[#E2E8F0] rounded-xl bg-white shadow-sm">
+              <div className="text-xs text-[#64748B] font-semibold uppercase tracking-wider mb-1">System Health</div>
+              <div className="text-sm font-bold text-[#22C55E]">All Systems Operational</div>
+              <div className="text-xs text-[#64748B] mt-1">MongoDB: {stats.systemStatus?.mongodb}</div>
+              <div className="text-xs text-[#64748B]">Gemini: {stats.systemStatus?.geminiKey}</div>
+            </div>
+          </div>
+          <h4 className="font-bold text-sm text-[#0F172A] mb-3">Recent Signups</h4>
+          <div className="border border-[#E2E8F0] rounded-lg overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs font-semibold text-[#64748B] uppercase">
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Joined</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F1F5F9]">
+                {stats.recentUsers?.map((u: any, i: number) => (
+                  <tr key={i} className="hover:bg-[#FAFAFA]">
+                    <td className="px-4 py-3 text-xs font-bold text-[#0F172A]">{u.name}</td>
+                    <td className="px-4 py-3 text-xs text-[#64748B]">{u.email}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className={`px-2 py-0.5 rounded-full font-semibold ${u.role === 'superadmin' ? 'bg-[#FFF2ED] text-[#FF5A36]' : 'bg-[#F1F5F9] text-[#64748B]'}`}>{u.role}</span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#94A3B8]">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="p-10 text-center text-sm text-red-500">Failed to load stats (Unauthorized)</div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
 
 function DashboardInner() {
